@@ -4,17 +4,21 @@ let whiteDots = [];
 
 let fireworks = []; // Can store multiple fireworks
 let song;
+let fft;//Declare an fft object
 
 function preload() {
   // add audio
-  song = loadSound("audio/Real-Love.mp3");
+  song = loadSound("audio/Giorno-Theme.mp3");
 }
 
 function setup() {
 
   createCanvas(windowWidth, windowHeight);
-  background(18, 88, 116); // Set background color
+  background(0); // Set background color
   angleMode(DEGREES);
+
+  // Initialize the fft object
+  fft = new p5.FFT();
 
   // Create 17 fireworks
   let positions = [
@@ -51,32 +55,34 @@ function setup() {
   }
 
 
-
-
 }
 
 
 
 function draw() {
-  let bgcol = color("#02496C");
-  bgcol.setAlpha(5);
-  background(bgcol);
-
-  // Draw white dots
-  for (let dot of whiteDots) {
-    dot.show();
-  }
-
-  // Only draw and update fireworks if music is playing
+  // Only update the background and draw fireworks if music is playing
   if (song.isPlaying()) {
+    let bgcol = color("#000000");
+    bgcol.setAlpha(5);
+    background(bgcol);
+
+    // use fft analyze analysing the audio spectrum
+    let spectrum = fft.analyze();
+
+    // Draw white dots
+    for (let dot of whiteDots) {
+
+      dot.update(spectrum); // Updated with spectrum
+      dot.show();
+    }
+
+    // Draw and update fireworks
     for (let fw of fireworks) {
       fw.show();
       fw.update();
     }
-  }
-
-  // Draw interaction hint text only if music is not playing
-  if (!song.isPlaying()) {
+  } else {
+    // Draw interaction hint text only if music is not playing
     textAlign(CENTER, CENTER);
     textSize(16);
     fill(255);
@@ -87,7 +93,7 @@ function draw() {
 }
 
 // Toggle playback on or off with a mouse click
-function mouseClicked() {
+function mousePressed() {
   if (song.isPlaying()) {
     song.pause();
   } else {
@@ -98,6 +104,7 @@ function mouseClicked() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  
 
   // Update positions for fireworks
   fireworks.forEach((firework, index) => {
@@ -179,6 +186,15 @@ class Firework {
     if (millis() - this.cycleStartTime >= cycleDuration) {
       this.cycleStartTime = millis();
     }
+
+      // Getting the energy value of the audio
+      let bass = fft.getEnergy("bass"); // bass
+      let treble = fft.getEnergy("treble"); // treble
+  
+      // Adjust the expansion and rotation speeds according to the energy of the audio
+      this.expansionSpeed = map(bass, 0, 255, 0.2, 2);
+      this.rotationSpeed = map(treble, 0, 255, 0.1, 5);
+
   }
 
   updatePosition(newX, newY) {
@@ -192,13 +208,20 @@ class WhiteDot {
   constructor(x, y, size) {
     this.x = x;
     this.y = y;
-    this.size = size;
+    this.baseSize = random(1, 50); // Setting the size area
+    this.alpha = 50; // Setting alpha 
   }
 
-  show() {
-    fill(255);
-    noStroke();
-    ellipse(this.x, this.y, this.size, this.size);
+  show() {//change whitedot to colourful hollow circles
+    strokeWeight(1); // Setting the width
+    stroke(255, 255, 255, this.alpha); // Use alpha as transparency parameter
+    noFill(); 
+    ellipse(this.x, this.y, this.size, this.size); 
+  }
+
+  update(spectrum) {
+    let bass = fft.getEnergy("bass"); // Getting energy from the bass
+    this.size = this.baseSize + bass / 5; // Adjust the scale according to the bass energy
   }
 
   updatePosition(newX, newY) {
